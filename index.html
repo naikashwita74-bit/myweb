@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LedgerFlow — Personal Expense Tracker</title>
+    <meta
+      name="description"
+      content="A clean, modular HTML5, CSS3, and Vanilla JavaScript expense tracker with interactive analytics, transaction history, and monthly budget monitoring."
+    />
+    <meta property="og:title" content="LedgerFlow — Personal Expense Tracker" />
+    <meta
+      property="og:description"
+      content="Track income, expenses, category analytics, and monthly budgets in a clean financial workspace."
+    />
+    <meta property="og:type" content="website" />
+    <link rel="icon" type="image/svg+xml" href="./assets/logo.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./css/style.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
+
+      <aside id="sidebar" class="sidebar" aria-label="Primary Navigation">
+        <div class="sidebar-header">
+          <a href="#dashboard" class="brand-link" data-nav="dashboard">
+            <img src="./assets/logo.svg" alt="LedgerFlow logo" class="brand-mark" width="28" height="28" />
+            <span class="brand-name">LedgerFlow</span>
+          </a>
+          <button
+            type="button"
+            id="close-sidebar-btn"
+            class="icon-btn mobile-only"
+            aria-label="Close navigation menu"
+          >
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+
+        <nav class="sidebar-nav" aria-label="Workspace Sections">
+          <button type="button" class="nav-item is-active" data-nav="dashboard">
+            <i data-lucide="layout-dashboard"></i>
+            <span>Dashboard</span>
+          </button>
+          <button type="button" class="nav-item" data-nav="add-transaction">
+            <i data-lucide="plus-circle"></i>
+            <span>Add Entry</span>
+          </button>
+          <button type="button" class="nav-item" data-nav="transactions">
+            <i data-lucide="arrow-left-right"></i>
+            <span>Transactions</span>
+          </button>
+          <button type="button" class="nav-item" data-nav="analytics">
+            <i data-lucide="bar-chart-3"></i>
+            <span>Analytics</span>
+          </button>
+          <button type="button" class="nav-item" data-nav="budget">
+            <i data-lucide="wallet"></i>
+            <span>Budget</span>
+          </button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <button type="button" id="export-csv-btn" class="sidebar-utility-btn">
+            <i data-lucide="download"></i>
+            <span>Export CSV</span>
+          </button>
+          <button type="button" id="reset-sample-btn" class="sidebar-utility-btn">
+            <i data-lucide="rotate-ccw"></i>
+            <span>Reset Sample Data</span>
+          </button>
+        </div>
+      </aside>
+
+      <div class="workspace">
+        <header class="topbar">
+          <div class="topbar-left">
+            <button
+              type="button"
+              id="open-sidebar-btn"
+              class="icon-btn mobile-only"
+              aria-label="Open navigation menu"
+            >
+              <i data-lucide="menu"></i>
+            </button>
+            <div class="breadcrumb" aria-label="Current section">
+              <span class="breadcrumb-root">Workspace</span>
+              <span class="breadcrumb-sep" aria-hidden="true">/</span>
+              <h1 id="topbar-title" class="breadcrumb-current">Dashboard</h1>
+            </div>
+          </div>
+
+          <div class="topbar-actions">
+            <label class="month-control" for="global-month-picker">
+              <span class="sr-only">Active month</span>
+              <i data-lucide="calendar"></i>
+              <input type="month" id="global-month-picker" class="month-input" />
+            </label>
+            <button type="button" id="topbar-add-btn" class="btn btn-primary">
+              <i data-lucide="plus"></i>
+              <span>Add Transaction</span>
+            </button>
+          </div>
+        </header>
+
+        <main class="main-content" id="main-content">
+          <section id="view-dashboard" class="view-section" aria-label="Dashboard Overview"></section>
+          <section id="view-add-transaction" class="view-section" aria-label="Add Income or Expense" hidden></section>
+          <section id="view-transactions" class="view-section" aria-label="Transaction History" hidden></section>
+          <section id="view-analytics" class="view-section" aria-label="Expense Analytics" hidden></section>
+          <section id="view-budget" class="view-section" aria-label="Budget Management" hidden></section>
+        </main>
+      </div>
+    </div>
+
+    <!-- Quick Add / Edit Transaction Modal -->
+    <div id="transaction-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title" hidden>
+      <div class="modal-panel">
+        <div class="modal-header">
+          <h2 id="modal-title" class="modal-title">Add Transaction</h2>
+          <button type="button" id="modal-close-btn" class="icon-btn" aria-label="Close modal">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div id="modal-body" class="modal-body"></div>
+      </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirm-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="confirm-title" hidden>
+      <div class="modal-panel modal-panel-sm">
+        <div class="modal-header">
+          <h2 id="confirm-title" class="modal-title">Confirm Action</h2>
+          <button type="button" id="confirm-close-btn" class="icon-btn" aria-label="Close confirmation">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="modal-body">
+          <p id="confirm-message" class="confirm-text"></p>
+          <div class="modal-footer">
+            <button type="button" id="confirm-cancel-btn" class="btn btn-secondary">Cancel</button>
+            <button type="button" id="confirm-accept-btn" class="btn btn-danger">Delete</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+    <script type="module" src="./js/app.js"></script>
+  </body>
+</html>
