@@ -1,55 +1,64 @@
 /**
  * storage.js
- * Centralized persistence layer wrapping LocalStorage.
- * Structured as an isolated repository module so LocalStorage calls
- * can be replaced directly with REST API calls (Node.js / Express / SQL) later.
+ * Centralized data persistence layer connected to the Node.js + Express + SQLite backend.
+ * LocalStorage read/writes have been replaced with REST API calls using fetch().
+ * Includes one-time migration from legacy LocalStorage data into the database.
  */
+
+/**
+ * Resolves the API base URL.
+ *
+ * - Served by the Express backend (http://localhost:3000) -> same origin.
+ * - Served by the Vite dev server (http://localhost:5173) -> /api is proxied
+ *   to the backend by vite.config.ts, so the same relative path still works.
+ * - Opened straight from the file system -> fall back to the backend origin.
+ */
+const API_BASE = (() => {
+  const origin = typeof window !== 'undefined' ? window.location?.origin : '';
+
+  if (!origin || origin === 'null' || origin.startsWith('file:')) {
+    return 'http://localhost:3000/api';
+  }
+
+  return '/api';
+})();
 
 export const STORAGE_KEYS = {
   TRANSACTIONS: 'ledgerflow_transactions_v1',
   BUDGET: 'ledgerflow_budget_v1',
   INITIALIZED: 'ledgerflow_initialized_v1',
+  MIGRATED: 'ledgerflow_migrated_v1',
 };
 
 /**
- * Generates a unique transaction identifier.
- * @returns {string}
+ * Helper to handle fetch responses and parse JSON with proper error handling.
+ * @param {string} endpoint
+ * @param {RequestInit} [options]
+ * @returns {Promise<any>}
  */
-export function generateTransactionId() {
-  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return `tx_${crypto.randomUUID().slice(0, 8)}`;
+async function apiRequest(endpoint, options = {}) {
+  const url = `${API_BASE}${endpoint}`;
+  const response = await fetch(url, {
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+    ...options,
+  });
+
+  const contentType = response.headers.get('content-type') || '';
+  const isJson = contentType.includes('application/json');
+  const data = isJson ? await response.json() : null;
+
+  if (!response.ok) {
+    const errorMsg = data?.error || `Request failed with status ${response.status}: ${response.statusText}`;
+    const err = new Error(errorMsg);
+    err.status = response.status;
+    err.data = data;
+    throw err;
   }
-  return `tx_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
-}
 
-/**
- * Normalizes a transaction object to enforce schema consistency.
- * @param {object} raw
- * @returns {object|null}
- */
-function normalizeTransaction(raw) {
-  if (!raw || typeof raw !== 'object') return null;
-
-  const type = raw.type === 'income' ? 'income' : 'expense';
-  const amount = Number(raw.amount);
-  if (!Number.isFinite(amount) || amount <= 0) return null;
-
-  const title = String(raw.title || '').trim();
-  const category = String(raw.category || 'Other').trim() || 'Other';
-  const date = String(raw.date || '').trim();
-  const description = String(raw.description || '').trim();
-
-  if (!title || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
-
-  return {
-    id: String(raw.id || generateTransactionId()),
-    title,
-    amount: Math.round(amount * 100) / 100,
-    category,
-    type,
-    date,
-    description,
-  };
+  return data;
 }
 
 /**
@@ -71,8 +80,7 @@ function buildRelativeDate(monthsAgo, dayOfMonth) {
 }
 
 /**
- * Creates a realistic initial dataset for first-time users.
- * @returns {{ transactions: Array<object>, budget: { defaultLimit: number, byMonth: Record<string, number> } }}
+ * Creates realistic initial seed dataset.
  */
 function createSeedData() {
   const today = new Date();
@@ -80,7 +88,6 @@ function createSeedData() {
 
   const transactions = [
     {
-      id: 'tx_seed_01',
       title: 'Monthly Salary',
       amount: 5400,
       category: 'Salary',
@@ -89,7 +96,6 @@ function createSeedData() {
       description: 'Primary engineering payroll deposit',
     },
     {
-      id: 'tx_seed_02',
       title: 'Apartment Rent',
       amount: 1650,
       category: 'Housing',
@@ -98,7 +104,6 @@ function createSeedData() {
       description: 'Monthly lease payment',
     },
     {
-      id: 'tx_seed_03',
       title: 'Grocery Shopping',
       amount: 215.4,
       category: 'Food',
@@ -107,7 +112,6 @@ function createSeedData() {
       description: 'Weekly groceries and produce',
     },
     {
-      id: 'tx_seed_04',
       title: 'Electric & Fiber Internet',
       amount: 148.9,
       category: 'Utilities',
@@ -116,7 +120,6 @@ function createSeedData() {
       description: 'Monthly power and home internet',
     },
     {
-      id: 'tx_seed_05',
       title: 'Freelance UI Audit',
       amount: 850,
       category: 'Freelance',
@@ -125,7 +128,6 @@ function createSeedData() {
       description: 'Design systems consulting invoice',
     },
     {
-      id: 'tx_seed_06',
       title: 'Metro Pass & Fuel',
       amount: 96,
       category: 'Transport',
@@ -134,7 +136,6 @@ function createSeedData() {
       description: 'Commuter transit pass and fuel',
     },
     {
-      id: 'tx_seed_07',
       title: 'Dental Checkup',
       amount: 135,
       category: 'Healthcare',
@@ -143,7 +144,6 @@ function createSeedData() {
       description: 'Routine preventive care copay',
     },
     {
-      id: 'tx_seed_08',
       title: 'Monthly Salary',
       amount: 5400,
       category: 'Salary',
@@ -152,7 +152,6 @@ function createSeedData() {
       description: 'Primary engineering payroll deposit',
     },
     {
-      id: 'tx_seed_09',
       title: 'Apartment Rent',
       amount: 1650,
       category: 'Housing',
@@ -161,7 +160,6 @@ function createSeedData() {
       description: 'Monthly lease payment',
     },
     {
-      id: 'tx_seed_10',
       title: 'Whole Foods & Dining',
       amount: 482.6,
       category: 'Food',
@@ -170,7 +168,6 @@ function createSeedData() {
       description: 'Groceries and weekend dinner',
     },
     {
-      id: 'tx_seed_11',
       title: 'Cloud & Streaming Services',
       amount: 64.5,
       category: 'Entertainment',
@@ -179,7 +176,6 @@ function createSeedData() {
       description: 'Music, film, and digital subscriptions',
     },
     {
-      id: 'tx_seed_12',
       title: 'Utilities Bundle',
       amount: 162,
       category: 'Utilities',
@@ -188,7 +184,6 @@ function createSeedData() {
       description: 'Water, electric, and internet',
     },
     {
-      id: 'tx_seed_13',
       title: 'Monthly Salary',
       amount: 5250,
       category: 'Salary',
@@ -197,7 +192,6 @@ function createSeedData() {
       description: 'Primary payroll deposit',
     },
     {
-      id: 'tx_seed_14',
       title: 'Apartment Rent',
       amount: 1650,
       category: 'Housing',
@@ -206,7 +200,6 @@ function createSeedData() {
       description: 'Monthly lease payment',
     },
     {
-      id: 'tx_seed_15',
       title: 'Grocery & Household',
       amount: 410,
       category: 'Food',
@@ -215,7 +208,6 @@ function createSeedData() {
       description: 'Pantry restock and household essentials',
     },
     {
-      id: 'tx_seed_16',
       title: 'Quarterly Dividend',
       amount: 320,
       category: 'Investments',
@@ -224,7 +216,6 @@ function createSeedData() {
       description: 'Index fund distribution',
     },
     {
-      id: 'tx_seed_17',
       title: 'Running Shoes & Apparel',
       amount: 185,
       category: 'Shopping',
@@ -233,7 +224,6 @@ function createSeedData() {
       description: 'Athletic gear replacement',
     },
     {
-      id: 'tx_seed_18',
       title: 'Monthly Salary',
       amount: 5250,
       category: 'Salary',
@@ -242,7 +232,6 @@ function createSeedData() {
       description: 'Primary payroll deposit',
     },
     {
-      id: 'tx_seed_19',
       title: 'Apartment Rent',
       amount: 1650,
       category: 'Housing',
@@ -251,7 +240,6 @@ function createSeedData() {
       description: 'Monthly lease payment',
     },
     {
-      id: 'tx_seed_20',
       title: 'Online Course Subscription',
       amount: 199,
       category: 'Education',
@@ -260,7 +248,6 @@ function createSeedData() {
       description: 'Systems architecture workshop',
     },
     {
-      id: 'tx_seed_21',
       title: 'Monthly Salary',
       amount: 5100,
       category: 'Salary',
@@ -269,7 +256,6 @@ function createSeedData() {
       description: 'Primary payroll deposit',
     },
     {
-      id: 'tx_seed_22',
       title: 'Apartment Rent & Utilities',
       amount: 1795,
       category: 'Housing',
@@ -278,7 +264,6 @@ function createSeedData() {
       description: 'Monthly lease and utilities',
     },
     {
-      id: 'tx_seed_23',
       title: 'Groceries & Coffee',
       amount: 365,
       category: 'Food',
@@ -288,215 +273,321 @@ function createSeedData() {
     },
   ];
 
-  const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-  const budget = {
-    defaultLimit: 3200,
-    byMonth: {
-      [currentMonthKey]: 3200,
+  return {
+    transactions,
+    budget: {
+      year: today.getFullYear(),
+      month: today.getMonth() + 1,
+      amount: 3200,
     },
   };
-
-  return { transactions, budget };
 }
 
 /**
- * Ensures LocalStorage has initial sample data on first launch only.
+ * Performs a one-time migration of existing LocalStorage data into SQLite via the REST API.
+ * Sets a flag 'ledgerflow_migrated_v1' so it never runs twice.
+ * Leaves the original LocalStorage data untouched as a backup.
+ * @returns {Promise<{ migrated: boolean, txCount: number, budgetCount: number }>}
  */
-export function ensureInitialized() {
+export async function migrateFromLocalStorage() {
   try {
-    const initialized = localStorage.getItem(STORAGE_KEYS.INITIALIZED);
-    if (initialized === 'true') return;
+    const alreadyMigrated = localStorage.getItem(STORAGE_KEYS.MIGRATED);
+    if (alreadyMigrated === 'true') {
+      return { migrated: false, txCount: 0, budgetCount: 0 };
+    }
 
-    const seed = createSeedData();
-    localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(seed.transactions));
-    localStorage.setItem(STORAGE_KEYS.BUDGET, JSON.stringify(seed.budget));
-    localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
+    let txCount = 0;
+    let budgetCount = 0;
+
+    // Check for existing transactions in LocalStorage (skipping dummy seed records)
+    const rawTx = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
+    if (rawTx) {
+      const parsedTx = JSON.parse(rawTx);
+      if (Array.isArray(parsedTx) && parsedTx.length > 0) {
+        for (const item of parsedTx) {
+          // Do not migrate dummy seed data
+          if (item.id && String(item.id).startsWith('tx_seed_')) {
+            continue;
+          }
+          try {
+            await apiRequest('/transactions', {
+              method: 'POST',
+              body: JSON.stringify({
+                title: item.title,
+                amount: Number(item.amount),
+                category: item.category,
+                type: item.type,
+                date: item.date,
+                description: item.description || '',
+              }),
+            });
+            txCount += 1;
+          } catch (itemErr) {
+            console.warn('Failed to migrate transaction item:', item, itemErr);
+          }
+        }
+      }
+    }
+
+    // Check for existing budget in LocalStorage
+    const rawBudget = localStorage.getItem(STORAGE_KEYS.BUDGET);
+    if (rawBudget) {
+      const parsedBudget = JSON.parse(rawBudget);
+      const byMonth = parsedBudget?.byMonth || {};
+      for (const [mKey, limit] of Object.entries(byMonth)) {
+        if (/^\d{4}-\d{2}$/.test(mKey) && Number(limit) > 0) {
+          const [yStr, mStr] = mKey.split('-');
+          try {
+            await apiRequest('/budgets', {
+              method: 'POST',
+              body: JSON.stringify({
+                year: parseInt(yStr, 10),
+                month: parseInt(mStr, 10),
+                amount: Number(limit),
+              }),
+            });
+            budgetCount += 1;
+          } catch (budgetErr) {
+            // Ignore if already created or conflict
+            console.warn('Budget migration notice:', budgetErr.message);
+          }
+        }
+      }
+    }
+
+    // Mark migration complete in LocalStorage without removing backup data
+    localStorage.setItem(STORAGE_KEYS.MIGRATED, 'true');
+
+    if (txCount > 0 || budgetCount > 0) {
+      console.log(`[Migration] Successfully imported ${txCount} transactions and ${budgetCount} budgets from LocalStorage into SQLite.`);
+    }
+
+    return { migrated: true, txCount, budgetCount };
   } catch (err) {
-    console.error('Storage initialization failed:', err);
+    console.error('Migration error:', err);
+    return { migrated: false, txCount: 0, budgetCount: 0 };
   }
 }
 
 /**
- * Retrieves all stored transactions.
- * Future REST mapping: GET /api/transactions
- * @returns {Array<object>}
+ * Ensures data initialization checks run on launch.
+ * Runs one-time migration from LocalStorage (if any user records exist).
  */
-export function getTransactions() {
+export async function ensureInitialized() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.TRANSACTIONS);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.map(normalizeTransaction).filter(Boolean);
+    const migrationResult = await migrateFromLocalStorage();
+    return migrationResult;
   } catch (err) {
-    console.error('Failed to read transactions from storage:', err);
-    return [];
+    console.error('Data initialization failed:', err);
+    throw err;
   }
 }
 
 /**
- * Persists the complete transactions array.
- * @param {Array<object>} transactions
- * @returns {Array<object>}
+ * Retrieves all transactions from the API, newest first.
+ * Mapping: GET /api/transactions
+ * @returns {Promise<Array<object>>}
  */
-export function saveTransactions(transactions) {
-  const sanitized = Array.isArray(transactions)
-    ? transactions.map(normalizeTransaction).filter(Boolean)
-    : [];
-  try {
-    localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(sanitized));
-    localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
-  } catch (err) {
-    console.error('Failed to save transactions:', err);
-    throw new Error('Unable to save to browser storage.');
-  }
-  return sanitized;
+export async function getTransactions() {
+  const result = await apiRequest('/transactions');
+  return result?.data || [];
 }
 
 /**
- * Adds a new transaction record.
- * Future REST mapping: POST /api/transactions
+ * Adds a new transaction via the API.
+ * Mapping: POST /api/transactions
  * @param {object} txInput
- * @returns {object}
+ * @returns {Promise<object>}
  */
-export function addTransaction(txInput) {
-  const normalized = normalizeTransaction({
-    ...txInput,
-    id: generateTransactionId(),
+export async function addTransaction(txInput) {
+  const result = await apiRequest('/transactions', {
+    method: 'POST',
+    body: JSON.stringify(txInput),
   });
-  if (!normalized) {
-    throw new Error('Invalid transaction payload.');
-  }
-
-  const current = getTransactions();
-  current.unshift(normalized);
-  saveTransactions(current);
-  return normalized;
+  return result?.data;
 }
 
 /**
- * Updates an existing transaction by ID.
- * Future REST mapping: PUT /api/transactions/:id
- * @param {string} id
+ * Updates an existing transaction by ID via the API.
+ * Mapping: PUT /api/transactions/:id
+ * @param {number|string} id
  * @param {object} updates
- * @returns {object}
+ * @returns {Promise<object>}
  */
-export function updateTransaction(id, updates) {
-  const current = getTransactions();
-  const index = current.findIndex((item) => item.id === id);
-  if (index === -1) {
-    throw new Error('Transaction not found.');
-  }
-
-  const merged = normalizeTransaction({
-    ...current[index],
-    ...updates,
-    id: current[index].id,
+export async function updateTransaction(id, updates) {
+  const result = await apiRequest(`/transactions/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(updates),
   });
-
-  if (!merged) {
-    throw new Error('Invalid transaction update payload.');
-  }
-
-  current[index] = merged;
-  saveTransactions(current);
-  return merged;
+  return result?.data;
 }
 
 /**
- * Deletes a transaction by ID.
- * Future REST mapping: DELETE /api/transactions/:id
- * @param {string} id
- * @returns {boolean}
+ * Deletes a transaction by ID via the API.
+ * Mapping: DELETE /api/transactions/:id
+ * @param {number|string} id
+ * @returns {Promise<boolean>}
  */
-export function deleteTransaction(id) {
-  const current = getTransactions();
-  const next = current.filter((item) => item.id !== id);
-  if (next.length === current.length) return false;
-  saveTransactions(next);
+export async function deleteTransaction(id) {
+  await apiRequest(`/transactions/${id}`, {
+    method: 'DELETE',
+  });
   return true;
 }
 
 /**
- * Retrieves budget configuration object.
- * Future REST mapping: GET /api/budget
- * @returns {{ defaultLimit: number, byMonth: Record<string, number> }}
+ * Returns the configured budget limit for a specific YYYY-MM month from the API.
+ * Mapping: GET /api/budgets/:year/:month
+ * @param {string} monthKey 'YYYY-MM'
+ * @returns {Promise<number>}
  */
-export function getBudgetData() {
+export async function getMonthlyBudget(monthKey) {
+  if (!monthKey || !/^\d{4}-\d{2}$/.test(monthKey)) return 0;
+  const [yStr, mStr] = monthKey.split('-');
+  const year = parseInt(yStr, 10);
+  const month = parseInt(mStr, 10);
+
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.BUDGET);
-    if (!raw) return { defaultLimit: 0, byMonth: {} };
-    const parsed = JSON.parse(raw);
-    const defaultLimit = Number(parsed?.defaultLimit);
-    const byMonth = parsed?.byMonth && typeof parsed.byMonth === 'object' ? parsed.byMonth : {};
-    return {
-      defaultLimit: Number.isFinite(defaultLimit) && defaultLimit >= 0 ? defaultLimit : 0,
-      byMonth,
-    };
+    const result = await apiRequest(`/budgets/${year}/${month}`);
+    return Number(result?.data?.amount) || 0;
   } catch (err) {
-    console.error('Failed to read budget configuration:', err);
-    return { defaultLimit: 0, byMonth: {} };
+    if (err.status === 404) {
+      return 0; // No budget set for this month
+    }
+    console.error(`Failed to fetch budget for ${monthKey}:`, err);
+    return 0;
   }
 }
 
 /**
- * Returns the configured budget limit for a specific YYYY-MM month.
- * @param {string} monthKey
- * @returns {number}
- */
-export function getMonthlyBudget(monthKey) {
-  const data = getBudgetData();
-  if (monthKey && Object.prototype.hasOwnProperty.call(data.byMonth, monthKey)) {
-    const val = Number(data.byMonth[monthKey]);
-    return Number.isFinite(val) && val >= 0 ? val : 0;
-  }
-  return data.defaultLimit || 0;
-}
-
-/**
- * Saves a monthly budget limit for the given month key.
- * Future REST mapping: PUT /api/budget
- * @param {string} monthKey
+ * Saves a monthly budget limit for the given month key via the API.
+ * Creates if not exists, or updates if already present.
+ * Mapping: POST /api/budgets or PUT /api/budgets/:id
+ * @param {string} monthKey 'YYYY-MM'
  * @param {number} amount
- * @returns {number}
+ * @returns {Promise<number>}
  */
-export function saveMonthlyBudget(monthKey, amount) {
+export async function saveMonthlyBudget(monthKey, amount) {
   const numericAmount = Math.round(Number(amount) * 100) / 100;
   if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
     throw new Error('Budget amount must be greater than zero.');
   }
 
-  const current = getBudgetData();
-  const next = {
-    defaultLimit: current.defaultLimit || numericAmount,
-    byMonth: {
-      ...current.byMonth,
-      [monthKey]: numericAmount,
-    },
-  };
-
-  try {
-    localStorage.setItem(STORAGE_KEYS.BUDGET, JSON.stringify(next));
-    localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
-  } catch (err) {
-    console.error('Failed to save budget:', err);
-    throw new Error('Unable to save budget to browser storage.');
+  if (!monthKey || !/^\d{4}-\d{2}$/.test(monthKey)) {
+    throw new Error('Invalid month key format. Expected YYYY-MM.');
   }
+
+  const [yStr, mStr] = monthKey.split('-');
+  const year = parseInt(yStr, 10);
+  const month = parseInt(mStr, 10);
+
+  // Check if budget record exists
+  let existingBudget = null;
+  try {
+    const check = await apiRequest(`/budgets/${year}/${month}`);
+    existingBudget = check?.data;
+  } catch (err) {
+    if (err.status !== 404) throw err;
+  }
+
+  if (existingBudget && existingBudget.id) {
+    // Update existing budget
+    await apiRequest(`/budgets/${existingBudget.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ amount: numericAmount }),
+    });
+  } else {
+    // Create new budget
+    await apiRequest('/budgets', {
+      method: 'POST',
+      body: JSON.stringify({ year, month, amount: numericAmount }),
+    });
+  }
+
   return numericAmount;
 }
 
 /**
- * Restores realistic sample data for demonstration and testing.
+ * Restores sample seed data in the database through the API.
  */
-export function resetSampleData() {
-  const seed = createSeedData();
-  try {
-    localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(seed.transactions));
-    localStorage.setItem(STORAGE_KEYS.BUDGET, JSON.stringify(seed.budget));
-    localStorage.setItem(STORAGE_KEYS.INITIALIZED, 'true');
-  } catch (err) {
-    console.error('Failed to reset sample data:', err);
-    throw new Error('Unable to reset sample data.');
+export async function resetSampleData() {
+  const current = await getTransactions();
+  for (const tx of current) {
+    await deleteTransaction(tx.id);
   }
+
+  const seed = createSeedData();
+  for (const tx of seed.transactions) {
+    await addTransaction(tx);
+  }
+
+  await saveMonthlyBudget(
+    `${seed.budget.year}-${String(seed.budget.month).padStart(2, '0')}`,
+    seed.budget.amount
+  );
+
   return seed;
+}
+
+/**
+ * Reads the AI Expense Analyzer provider configuration.
+ * Mapping: GET /api/ai/status
+ * @returns {Promise<object>}
+ */
+export async function getAiStatus() {
+  const result = await apiRequest('/ai/status');
+  return result?.data || null;
+}
+
+/**
+ * Requests an AI analysis of the recorded transactions.
+ * Mapping: POST /api/ai/analyze
+ * @param {{ period?: string, month?: string, refresh?: boolean }} options
+ * @returns {Promise<{ analysis: object, meta: object }>}
+ */
+export async function analyzeExpenses(options = {}) {
+  const result = await apiRequest('/ai/analyze', {
+    method: 'POST',
+    body: JSON.stringify({
+      period: options.period || 'month',
+      month: options.month || undefined,
+      refresh: options.refresh === true,
+    }),
+  });
+
+  return {
+    analysis: result?.data || null,
+    meta: result?.meta || null,
+  };
+}
+
+/**
+ * Asks the AI a free-form question about the recorded transactions.
+ * Mapping: POST /api/ai/question
+ * @param {string} question
+ * @param {{ period?: string, month?: string }} options
+ * @returns {Promise<object>}
+ */
+export async function askAiAboutSpending(question, options = {}) {
+  const result = await apiRequest('/ai/question', {
+    method: 'POST',
+    body: JSON.stringify({
+      question,
+      period: options.period || 'month',
+      month: options.month || undefined,
+    }),
+  });
+
+  return result?.data || null;
+}
+
+/**
+ * Lists previously generated analyses.
+ * Mapping: GET /api/ai/history
+ * @param {number} limit
+ * @returns {Promise<Array<object>>}
+ */
+export async function getAiHistory(limit = 8) {
+  const result = await apiRequest(`/ai/history?limit=${encodeURIComponent(limit)}`);
+  return result?.data || [];
 }

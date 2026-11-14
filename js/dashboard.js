@@ -423,7 +423,7 @@ function renderDashboardCharts(metrics) {
             ticks: {
               color: '#64748b',
               font: { family: 'JetBrains Mono', size: 11 },
-              callback: (val) => `$${Number(val).toLocaleString()}`,
+              callback: (val) => `₹${Number(val).toLocaleString('en-IN')}`,
             },
           },
         },

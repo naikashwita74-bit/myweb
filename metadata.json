@@ -1,6 +1,6 @@
 {
   "name": "LedgerFlow — Personal Expense Tracker",
-  "description": "A clean, modular HTML5, CSS3, and Vanilla JavaScript expense tracker with interactive analytics, transaction history, and monthly budget monitoring.",
+  "description": "A clean, modular HTML5, CSS3, and Vanilla JavaScript expense tracker with interactive analytics, transaction history, monthly budget monitoring, and an AI Expense Analyzer that surfaces spending patterns, anomalies, and savings opportunities.",
   "requestFramePermissions": [],
   "majorCapabilities": []
 }

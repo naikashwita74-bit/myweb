@@ -156,10 +156,10 @@ export function renderAnalyticsView(container, transactions, activeMonth, period
     period === 'month'
       ? formatMonthLabel(activeMonth, 'long')
       : period === '3m'
-      ? 'Last 3 Months'
-      : period === '6m'
-      ? 'Last 6 Months'
-      : 'All Time';
+        ? 'Last 3 Months'
+        : period === '6m'
+          ? 'Last 6 Months'
+          : 'All Time';
 
   const breakdownRows = data.categoryBreakdown
     .map(
@@ -184,8 +184,8 @@ export function renderAnalyticsView(container, transactions, activeMonth, period
       <div>
         <h2 class="section-title">Expense Analytics</h2>
         <p class="section-subtitle">Category breakdown, income versus expenses, and savings performance (${escapeHtml(
-          periodTitle
-        )}).</p>
+    periodTitle
+  )}).</p>
       </div>
 
       <div class="segmented" role="group" aria-label="Analytics timeframe">
@@ -213,16 +213,14 @@ export function renderAnalyticsView(container, transactions, activeMonth, period
           <span>Highest Spending Category</span>
           <i data-lucide="award"></i>
         </div>
-        <div class="kpi-value" style="font-family: var(--font-display); font-size: 19px;">${
-          data.highestCategory ? escapeHtml(data.highestCategory.category) : 'No expenses'
-        }</div>
-        <div class="kpi-foot">${
-          data.highestCategory
-            ? `<span class="num">${escapeHtml(
-                formatCurrency(data.highestCategory.amount)
-              )}</span> (<span class="num">${data.highestCategory.percentage.toFixed(1)}%</span> of spend)`
-            : 'Add expenses to analyze categories'
-        }</div>
+        <div class="kpi-value" style="font-family: var(--font-display); font-size: 19px;">${data.highestCategory ? escapeHtml(data.highestCategory.category) : 'No expenses'
+    }</div>
+        <div class="kpi-foot">${data.highestCategory
+      ? `<span class="num">${escapeHtml(
+        formatCurrency(data.highestCategory.amount)
+      )}</span> (<span class="num">${data.highestCategory.percentage.toFixed(1)}%</span> of spend)`
+      : 'Add expenses to analyze categories'
+    }</div>
       </div>
 
       <div class="kpi-card">
@@ -260,11 +258,10 @@ export function renderAnalyticsView(container, transactions, activeMonth, period
           <h3 class="card-title">Spending Distribution</h3>
           <span class="card-meta">${escapeHtml(periodTitle)}</span>
         </div>
-        ${
-          data.categoryBreakdown.length > 0
-            ? '<div class="chart-wrap chart-wrap-tall"><canvas id="analytics-distribution-chart"></canvas></div>'
-            : `<div class="empty-state"><div class="empty-state-icon"><i data-lucide="pie-chart"></i></div><h3 class="empty-state-title">No expense data</h3><p class="empty-state-desc">No expenses recorded in this period.</p></div>`
-        }
+        ${data.categoryBreakdown.length > 0
+      ? '<div class="chart-wrap chart-wrap-tall"><canvas id="analytics-distribution-chart"></canvas></div>'
+      : `<div class="empty-state"><div class="empty-state-icon"><i data-lucide="pie-chart"></i></div><h3 class="empty-state-title">No expense data</h3><p class="empty-state-desc">No expenses recorded in this period.</p></div>`
+    }
       </div>
     </div>
 
@@ -274,11 +271,10 @@ export function renderAnalyticsView(container, transactions, activeMonth, period
           <h3 class="card-title">Category-wise Expense Breakdown</h3>
           <span class="card-meta">Ranked by spend</span>
         </div>
-        ${
-          data.categoryBreakdown.length > 0
-            ? '<div class="chart-wrap"><canvas id="analytics-category-bar-chart"></canvas></div>'
-            : `<div class="empty-state"><div class="empty-state-icon"><i data-lucide="bar-chart-2"></i></div><h3 class="empty-state-title">No categories to rank</h3><p class="empty-state-desc">Record an expense to generate category comparisons.</p></div>`
-        }
+        ${data.categoryBreakdown.length > 0
+      ? '<div class="chart-wrap"><canvas id="analytics-category-bar-chart"></canvas></div>'
+      : `<div class="empty-state"><div class="empty-state-icon"><i data-lucide="bar-chart-2"></i></div><h3 class="empty-state-title">No categories to rank</h3><p class="empty-state-desc">Record an expense to generate category comparisons.</p></div>`
+    }
       </div>
 
       <div class="card">
@@ -286,9 +282,8 @@ export function renderAnalyticsView(container, transactions, activeMonth, period
           <h3 class="card-title">Category Share Table</h3>
           <span class="card-meta">${data.categoryBreakdown.length} categories</span>
         </div>
-        ${
-          data.categoryBreakdown.length > 0
-            ? `
+        ${data.categoryBreakdown.length > 0
+      ? `
           <div class="table-container">
             <table class="data-table">
               <thead>
@@ -305,10 +300,10 @@ export function renderAnalyticsView(container, transactions, activeMonth, period
             </table>
           </div>
         `
-            : `<div class="empty-state"><p class="empty-state-desc">No expense breakdown available for ${escapeHtml(
-                periodTitle
-              )}.</p></div>`
-        }
+      : `<div class="empty-state"><p class="empty-state-desc">No expense breakdown available for ${escapeHtml(
+        periodTitle
+      )}.</p></div>`
+    }
       </div>
     </div>
   `;
@@ -388,7 +383,7 @@ function renderAnalyticsCharts(data) {
             ticks: {
               color: '#64748b',
               font: { family: 'JetBrains Mono', size: 11 },
-              callback: (v) => `$${Number(v).toLocaleString()}`,
+              callback: (v) => `₹${Number(v).toLocaleString('en-IN')}`,
             },
           },
         },
@@ -475,7 +470,7 @@ function renderAnalyticsCharts(data) {
             ticks: {
               color: '#64748b',
               font: { family: 'JetBrains Mono', size: 11 },
-              callback: (v) => `$${Number(v).toLocaleString()}`,
+              callback: (v) => `₹${Number(v).toLocaleString('en-IN')}`,
             },
           },
           y: {

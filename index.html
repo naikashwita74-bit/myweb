@@ -6,12 +6,12 @@
     <title>LedgerFlow — Personal Expense Tracker</title>
     <meta
       name="description"
-      content="A clean, modular HTML5, CSS3, and Vanilla JavaScript expense tracker with interactive analytics, transaction history, and monthly budget monitoring."
+      content="A clean, modular HTML5, CSS3, and Vanilla JavaScript expense tracker with interactive analytics, transaction history, monthly budget monitoring, and an AI Expense Analyzer for pattern detection and savings guidance."
     />
     <meta property="og:title" content="LedgerFlow — Personal Expense Tracker" />
     <meta
       property="og:description"
-      content="Track income, expenses, category analytics, and monthly budgets in a clean financial workspace."
+      content="Track income, expenses, category analytics, monthly budgets, and get AI-powered spending insights in a clean financial workspace."
     />
     <meta property="og:type" content="website" />
     <link rel="icon" type="image/svg+xml" href="./assets/logo.svg" />
@@ -66,6 +66,10 @@
             <i data-lucide="wallet"></i>
             <span>Budget</span>
           </button>
+          <button type="button" class="nav-item" data-nav="ai">
+            <i data-lucide="sparkles"></i>
+            <span>AI Analyzer</span>
+          </button>
         </nav>
 
         <div class="sidebar-footer">
@@ -117,6 +121,7 @@
           <section id="view-transactions" class="view-section" aria-label="Transaction History" hidden></section>
           <section id="view-analytics" class="view-section" aria-label="Expense Analytics" hidden></section>
           <section id="view-budget" class="view-section" aria-label="Budget Management" hidden></section>
+          <section id="view-ai" class="view-section" aria-label="AI Expense Analyzer" hidden></section>
         </main>
       </div>
     </div>

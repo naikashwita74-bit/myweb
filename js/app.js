@@ -1,15 +1,20 @@
 /**
  * app.js
  * Application controller, view router, modal coordinator, and state orchestration.
+ * Updated to interact asynchronously with the Node.js + Express + SQLite backend.
  */
 
 import { renderAnalyticsView } from './analytics.js';
+import { renderAiAnalyzerView } from './ai-analyzer.js';
 import { renderBudgetView } from './budget.js';
 import { renderDashboardView } from './dashboard.js';
 import {
   addTransaction,
+  analyzeExpenses,
+  askAiAboutSpending,
   deleteTransaction,
   ensureInitialized,
+  getAiStatus,
   getMonthlyBudget,
   getTransactions,
   resetSampleData,
@@ -33,6 +38,7 @@ const VIEW_TITLES = {
   transactions: 'Transactions',
   analytics: 'Analytics',
   budget: 'Budget',
+  ai: 'AI Analyzer',
 };
 
 const state = {
@@ -47,6 +53,19 @@ const state = {
   },
   transactions: [],
   monthlyBudget: 0,
+  isLoading: false,
+  error: null,
+  ai: {
+    status: null,
+    analysis: null,
+    meta: null,
+    isAnalyzing: false,
+    isAsking: false,
+    error: null,
+    period: 'month',
+    answer: null,
+    question: '',
+  },
 };
 
 const dom = {
@@ -76,6 +95,7 @@ const dom = {
     transactions: document.getElementById('view-transactions'),
     analytics: document.getElementById('view-analytics'),
     budget: document.getElementById('view-budget'),
+    ai: document.getElementById('view-ai'),
   },
 };
 
@@ -103,11 +123,26 @@ function showToast(message, variant = 'success') {
 }
 
 /**
- * Syncs in-memory application state from the storage layer.
+ * Syncs in-memory application state from the backend API.
  */
-function loadStateFromStorage() {
-  state.transactions = getTransactions();
-  state.monthlyBudget = getMonthlyBudget(state.activeMonth);
+async function loadStateFromStorage() {
+  state.isLoading = true;
+  state.error = null;
+  try {
+    const [txList, budget] = await Promise.all([
+      getTransactions(),
+      getMonthlyBudget(state.activeMonth),
+    ]);
+    state.transactions = txList;
+    state.monthlyBudget = budget;
+    state.error = null;
+  } catch (err) {
+    console.error('Failed to load data from backend:', err);
+    state.error = err.message || 'Unable to connect to the backend server.';
+    showToast(state.error, 'error');
+  } finally {
+    state.isLoading = false;
+  }
 }
 
 /**
@@ -118,6 +153,108 @@ function setMobileSidebar(open) {
   if (!dom.sidebar || !dom.sidebarBackdrop) return;
   dom.sidebar.classList.toggle('is-open', open);
   dom.sidebarBackdrop.hidden = !open;
+}
+
+/**
+ * Loads the AI provider configuration (used to show the correct banner).
+ */
+async function loadAiStatus() {
+  try {
+    state.ai.status = await getAiStatus();
+  } catch (err) {
+    console.warn('Could not read AI provider status:', err);
+    state.ai.status = null;
+  }
+}
+
+/**
+ * Requests an AI analysis for the selected period and stores the result.
+ * @param {{ refresh?: boolean }} options
+ */
+async function runAiAnalysis(options = {}) {
+  if (state.ai.isAnalyzing) return;
+
+  state.ai.isAnalyzing = true;
+  state.ai.error = null;
+  renderActiveView();
+
+  try {
+    const { analysis, meta } = await analyzeExpenses({
+      period: state.ai.period,
+      month: state.activeMonth,
+      refresh: options.refresh === true,
+    });
+
+    state.ai.analysis = analysis;
+    state.ai.meta = meta;
+    state.ai.answer = null;
+  } catch (err) {
+    console.error('AI analysis failed:', err);
+    state.ai.error = err.message || 'Unable to run the analysis.';
+    showToast(state.ai.error, 'error');
+  } finally {
+    state.ai.isAnalyzing = false;
+    renderActiveView();
+  }
+}
+
+/**
+ * Ensures the AI view has a status and an analysis ready to display.
+ */
+async function ensureAiReady() {
+  if (!state.ai.status) await loadAiStatus();
+  if (!state.ai.analysis && !state.ai.isAnalyzing) {
+    await runAiAnalysis();
+  }
+}
+
+/**
+ * Sends a free-form question about the recorded spending to the AI service.
+ * @param {string} question
+ */
+async function askAi(question) {
+  const value = String(question || '').trim();
+  if (!value || state.ai.isAsking) return;
+
+  state.ai.question = value;
+  state.ai.isAsking = true;
+  renderActiveView();
+
+  try {
+    state.ai.answer = await askAiAboutSpending(value, {
+      period: state.ai.period,
+      month: state.activeMonth,
+    });
+  } catch (err) {
+    console.error('AI question failed:', err);
+    showToast(err.message || 'Could not answer the question.', 'error');
+  } finally {
+    state.ai.isAsking = false;
+    renderActiveView();
+    focusAiQuestionInput();
+  }
+}
+
+/**
+ * Restores focus to the question input after the view re-renders.
+ */
+function focusAiQuestionInput() {
+  const input = dom.views.ai?.querySelector('#ai-question-input');
+  if (!input) return;
+  input.focus();
+  const length = input.value.length;
+  input.setSelectionRange(length, length);
+}
+
+/**
+ * Drops the cached AI analysis so the next visit recomputes it from the
+ * current ledger contents.
+ */
+function invalidateAiAnalysis() {
+  state.ai.analysis = null;
+  state.ai.meta = null;
+  state.ai.answer = null;
+  state.ai.error = null;
 }
 
 /**
@@ -149,6 +286,11 @@ function navigateTo(viewKey) {
 
   setMobileSidebar(false);
   renderActiveView();
+
+  // The AI analyzer loads its own data on first visit.
+  if (nextView === 'ai') {
+    ensureAiReady();
+  }
 }
 
 /**
@@ -199,17 +341,18 @@ function openTransactionModal(mode, txData = null) {
 
   bindTransactionForm(formEl, {
     onCancel: closeTransactionModal,
-    onSubmit: (normalized) => {
+    onSubmit: async (normalized) => {
       try {
         if (mode === 'edit' && txData?.id) {
-          updateTransaction(txData.id, normalized);
+          await updateTransaction(txData.id, normalized);
           showToast('Transaction updated.');
         } else {
-          addTransaction(normalized);
+          await addTransaction(normalized);
           showToast('Transaction added.');
         }
         closeTransactionModal();
-        loadStateFromStorage();
+        invalidateAiAnalysis();
+        await loadStateFromStorage();
         renderActiveView();
       } catch (err) {
         showToast(err.message || 'Could not save transaction.', 'error');
@@ -225,10 +368,10 @@ function closeTransactionModal() {
 
 /**
  * Handles deleting a transaction with confirmation.
- * @param {string} txId
+ * @param {number|string} txId
  */
 async function handleDeleteTransaction(txId) {
-  const target = state.transactions.find((t) => t.id === txId);
+  const target = state.transactions.find((t) => String(t.id) === String(txId));
   if (!target) return;
 
   const confirmed = await openConfirmDialog({
@@ -240,8 +383,9 @@ async function handleDeleteTransaction(txId) {
   if (!confirmed) return;
 
   try {
-    deleteTransaction(txId);
-    loadStateFromStorage();
+    await deleteTransaction(txId);
+    invalidateAiAnalysis();
+    await loadStateFromStorage();
     renderActiveView();
     showToast('Transaction deleted.');
   } catch (err) {
@@ -251,10 +395,10 @@ async function handleDeleteTransaction(txId) {
 
 /**
  * Handles opening the edit modal for a specific transaction ID.
- * @param {string} txId
+ * @param {number|string} txId
  */
 function handleEditRequest(txId) {
-  const target = state.transactions.find((t) => t.id === txId);
+  const target = state.transactions.find((t) => String(t.id) === String(txId));
   if (!target) {
     showToast('Transaction not found.', 'error');
     return;
@@ -268,6 +412,44 @@ function handleEditRequest(txId) {
 function renderActiveView() {
   const container = dom.views[state.activeView];
   if (!container) return;
+
+  // Render loading state if initial/background fetch is in flight
+  if (state.isLoading && state.transactions.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon"><i data-lucide="database"></i></div>
+        <h3 class="empty-state-title">Loading LedgerFlow data...</h3>
+        <p class="empty-state-desc">Connecting to SQLite database</p>
+      </div>
+    `;
+    refreshIcons();
+    return;
+  }
+
+  // Render visible error banner if connection or backend failed
+  if (state.error && state.transactions.length === 0) {
+    container.innerHTML = `
+      <div class="status-banner is-exceeded" style="margin-bottom: 24px;">
+        <div class="status-banner-main">
+          <i data-lucide="alert-circle"></i>
+          <div>
+            <div class="status-banner-title">Unable to Connect to Server</div>
+            <div class="status-banner-desc">${escapeHtml(state.error)}</div>
+          </div>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" data-action="retry-connection">Retry</button>
+      </div>
+    `;
+    container.onclick = async (e) => {
+      const btn = e.target.closest('[data-action="retry-connection"]');
+      if (btn) {
+        await loadStateFromStorage();
+        renderActiveView();
+      }
+    };
+    refreshIcons();
+    return;
+  }
 
   const sharedCallbacks = {
     onNavigate: navigateTo,
@@ -289,10 +471,11 @@ function renderActiveView() {
 
     case 'add-transaction':
       renderAddTransactionView(container, {
-        onCreate: (normalized) => {
+        onCreate: async (normalized) => {
           try {
-            addTransaction(normalized);
-            loadStateFromStorage();
+            await addTransaction(normalized);
+            invalidateAiAnalysis();
+            await loadStateFromStorage();
             showToast('Transaction saved.');
             navigateTo('dashboard');
           } catch (err) {
@@ -345,16 +528,44 @@ function renderActiveView() {
         state.activeMonth,
         state.monthlyBudget,
         {
-          onSaveBudget: (monthKey, limit) => {
+          onSaveBudget: async (monthKey, limit) => {
             try {
-              saveMonthlyBudget(monthKey, limit);
-              loadStateFromStorage();
+              await saveMonthlyBudget(monthKey, limit);
+              await loadStateFromStorage();
               renderActiveView();
               showToast('Monthly budget updated.');
             } catch (err) {
               showToast(err.message || 'Could not update budget.', 'error');
             }
           },
+        }
+      );
+      break;
+
+    case 'ai':
+      renderAiAnalyzerView(
+        container,
+        {
+          analysis: state.ai.analysis,
+          meta: state.ai.meta,
+          status: state.ai.status,
+          isAnalyzing: state.ai.isAnalyzing,
+          isAsking: state.ai.isAsking,
+          error: state.ai.error,
+          period: state.ai.period,
+          activeMonth: state.activeMonth,
+          answer: state.ai.answer,
+          question: state.ai.question,
+        },
+        {
+          onAnalyze: (options) => runAiAnalysis(options),
+          onPeriodChange: (period) => {
+            state.ai.period = period;
+            state.ai.analysis = null;
+            state.ai.answer = null;
+            runAiAnalysis();
+          },
+          onAsk: (question) => askAi(question),
         }
       );
       break;
@@ -385,10 +596,11 @@ function bindGlobalListeners() {
 
   if (dom.globalMonthPicker) {
     dom.globalMonthPicker.value = state.activeMonth;
-    dom.globalMonthPicker.addEventListener('change', (e) => {
+    dom.globalMonthPicker.addEventListener('change', async (e) => {
       if (e.target.value) {
         state.activeMonth = e.target.value;
-        state.monthlyBudget = getMonthlyBudget(state.activeMonth);
+        state.monthlyBudget = await getMonthlyBudget(state.activeMonth);
+        invalidateAiAnalysis();
         renderActiveView();
       }
     });
@@ -419,12 +631,17 @@ function bindGlobalListeners() {
       });
       if (!confirmed) return;
 
-      resetSampleData();
-      state.activeMonth = getCurrentMonthKey();
-      if (dom.globalMonthPicker) dom.globalMonthPicker.value = state.activeMonth;
-      loadStateFromStorage();
-      renderActiveView();
-      showToast('Sample data restored.');
+      try {
+        await resetSampleData();
+        state.activeMonth = getCurrentMonthKey();
+        if (dom.globalMonthPicker) dom.globalMonthPicker.value = state.activeMonth;
+        invalidateAiAnalysis();
+        await loadStateFromStorage();
+        renderActiveView();
+        showToast('Sample data restored.');
+      } catch (err) {
+        showToast(err.message || 'Could not reset sample data.', 'error');
+      }
     });
   }
 
@@ -471,14 +688,21 @@ function bindGlobalListeners() {
 /**
  * Initializes the application on DOM ready.
  */
-function init() {
-  ensureInitialized();
-  loadStateFromStorage();
+async function init() {
   bindGlobalListeners();
 
   const initialHash = window.location.hash.replace('#', '');
   const initialView = initialHash && dom.views[initialHash] ? initialHash : 'dashboard';
   navigateTo(initialView);
+
+  try {
+    await ensureInitialized();
+  } catch (err) {
+    console.warn('Initial data check notice:', err);
+  }
+
+  await loadStateFromStorage();
+  renderActiveView();
   refreshIcons();
 }
 

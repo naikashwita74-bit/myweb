@@ -55,16 +55,16 @@ export function escapeHtml(value) {
 }
 
 /**
- * Formats a numeric value as USD currency.
+ * Formats a numeric value as INR (Rupees) currency.
  * @param {number} amount
  * @param {{ signed?: boolean }} options
  * @returns {string}
  */
 export function formatCurrency(amount, options = {}) {
   const num = Number(amount) || 0;
-  const absFormatted = new Intl.NumberFormat('en-US', {
+  const absFormatted = new Intl.NumberFormat('en-IN', {
     style: 'currency',
-    currency: 'USD',
+    currency: 'INR',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(Math.abs(num));
@@ -230,14 +230,14 @@ export function queryTransactions(transactions, filters = {}) {
   return filtered.sort((a, b) => {
     switch (sortBy) {
       case 'date-asc':
-        return a.date.localeCompare(b.date) || a.id.localeCompare(b.id);
+        return a.date.localeCompare(b.date) || String(a.id).localeCompare(String(b.id), undefined, { numeric: true });
       case 'amount-desc':
         return b.amount - a.amount || b.date.localeCompare(a.date);
       case 'amount-asc':
         return a.amount - b.amount || b.date.localeCompare(a.date);
       case 'date-desc':
       default:
-        return b.date.localeCompare(a.date) || b.id.localeCompare(a.id);
+        return b.date.localeCompare(a.date) || String(b.id).localeCompare(String(a.id), undefined, { numeric: true });
     }
   });
 }
@@ -298,7 +298,7 @@ export function buildTransactionFormMarkup({ mode, initialData = {}, formId, sho
         </div>
 
         <div class="form-field">
-          <label class="form-label" for="${escapeHtml(formId)}-amount">Amount (USD)</label>
+          <label class="form-label" for="${escapeHtml(formId)}-amount">Amount (₹)</label>
           <input
             id="${escapeHtml(formId)}-amount"
             name="amount"

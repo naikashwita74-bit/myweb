@@ -256,7 +256,7 @@ export function renderBudgetView(container, transactions, activeMonth, monthlyLi
         <span class="card-meta num">${escapeHtml(
           formatCurrency(statusInfo.monthlyExpenses)
         )} / ${
-    statusInfo.budgetLimit > 0 ? escapeHtml(formatCurrency(statusInfo.budgetLimit)) : '$0.00'
+    statusInfo.budgetLimit > 0 ? escapeHtml(formatCurrency(statusInfo.budgetLimit)) : '₹0.00'
   }</span>
       </div>
       <div class="progress-track" role="progressbar" aria-valuenow="${Math.round(
@@ -283,7 +283,7 @@ export function renderBudgetView(container, transactions, activeMonth, monthlyLi
 
         <form id="budget-form" class="tx-form" novalidate>
           <div class="form-field">
-            <label class="form-label" for="budget-limit-input">Monthly Budget Limit (USD)</label>
+            <label class="form-label" for="budget-limit-input">Monthly Budget Limit (₹)</label>
             <input
               id="budget-limit-input"
               name="budgetLimit"

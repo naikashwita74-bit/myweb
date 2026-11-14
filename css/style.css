@@ -1218,6 +1218,458 @@ button {
   }
 }
 
+/* AI Expense Analyzer */
+.ai-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ai-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.ai-hero-main {
+  flex: 1;
+  min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ai-hero-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ai-badge,
+.ai-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  border: 1px solid var(--border-hairline);
+  background-color: var(--bg-subtle);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.ai-badge svg,
+.ai-trend svg {
+  width: 13px;
+  height: 13px;
+}
+
+.ai-badge.is-ai {
+  background-color: var(--accent-primary);
+  border-color: var(--accent-primary);
+  color: #ffffff;
+}
+
+.ai-trend.is-income {
+  background-color: var(--semantic-income-bg);
+  border-color: var(--semantic-income-border);
+  color: var(--semantic-income);
+}
+
+.ai-trend.is-expense {
+  background-color: var(--semantic-danger-bg);
+  border-color: var(--semantic-danger-border);
+  color: var(--semantic-danger);
+}
+
+.ai-hero-title {
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.ai-hero-summary {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 640px;
+}
+
+.ai-hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.ai-hero-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ai-hero-meta svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* Health score ring */
+.ai-score {
+  position: relative;
+  width: 128px;
+  height: 128px;
+  flex-shrink: 0;
+}
+
+.ai-score-ring {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ai-score-track,
+.ai-score-fill {
+  fill: none;
+  stroke-width: 10;
+  stroke-linecap: round;
+}
+
+.ai-score-track {
+  stroke: var(--bg-subtle);
+}
+
+.ai-score-fill {
+  transition: stroke-dashoffset 420ms var(--ease-out);
+}
+
+.ai-score-fill.is-good {
+  stroke: var(--semantic-income);
+}
+
+.ai-score-fill.is-ok {
+  stroke: var(--accent-focus);
+}
+
+.ai-score-fill.is-warn {
+  stroke: var(--semantic-warning);
+}
+
+.ai-score-fill.is-bad {
+  stroke: var(--semantic-danger);
+}
+
+.ai-score-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.ai-score-value {
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.ai-score-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.grid-ai {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
+/* Insight and recommendation lists */
+.ai-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ai-insight {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 11px 13px;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-hover);
+}
+
+.ai-insight-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+  background-color: var(--bg-subtle);
+  color: var(--text-muted);
+}
+
+.ai-insight-icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.ai-insight-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-insight-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ai-insight-detail {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin-top: 2px;
+}
+
+.ai-insight-impact {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ai-insight.is-positive .ai-insight-icon {
+  background-color: var(--semantic-income-bg);
+  color: var(--semantic-income);
+}
+
+.ai-insight.is-info .ai-insight-icon {
+  background-color: var(--bg-subtle);
+  color: var(--text-secondary);
+}
+
+.ai-insight.is-warning .ai-insight-icon {
+  background-color: var(--semantic-warning-bg);
+  color: var(--semantic-warning);
+}
+
+.ai-insight.is-critical .ai-insight-icon {
+  background-color: var(--semantic-danger-bg);
+  color: var(--semantic-danger);
+}
+
+/* Recommendations */
+.ai-rec {
+  padding: 12px 14px;
+  border: 1px solid var(--border-hairline);
+  border-left: 3px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-surface);
+}
+
+.ai-rec.is-high {
+  border-left-color: var(--semantic-danger);
+}
+
+.ai-rec.is-medium {
+  border-left-color: var(--semantic-warning);
+}
+
+.ai-rec.is-low {
+  border-left-color: var(--semantic-income);
+}
+
+.ai-rec-head {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.ai-rec-title {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ai-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background-color: var(--bg-subtle);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-hairline);
+}
+
+.ai-pill.is-high {
+  background-color: var(--semantic-danger-bg);
+  border-color: var(--semantic-danger-border);
+  color: var(--semantic-danger);
+}
+
+.ai-pill.is-medium {
+  background-color: var(--semantic-warning-bg);
+  border-color: var(--semantic-warning-border);
+  color: var(--semantic-warning);
+}
+
+.ai-pill.is-low {
+  background-color: var(--semantic-income-bg);
+  border-color: var(--semantic-income-border);
+  color: var(--semantic-income);
+}
+
+.ai-rec-action {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin-top: 5px;
+}
+
+.ai-rec-saving {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--semantic-income);
+}
+
+/* Question box */
+.ai-ask-form {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.ai-ask-form .input {
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.ai-chip {
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border-hairline);
+  background-color: var(--bg-subtle);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  transition: background-color 150ms var(--ease-out), color 150ms var(--ease-out);
+}
+
+.ai-chip:hover {
+  background-color: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.ai-answer {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-md);
+  background-color: var(--bg-subtle);
+}
+
+.ai-answer-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ai-answer-head svg {
+  width: 14px;
+  height: 14px;
+}
+
+.ai-answer-body {
+  font-size: 13.5px;
+  color: var(--text-primary);
+  line-height: 1.6;
+  margin-top: 8px;
+  white-space: pre-line;
+}
+
+.ai-answer-notice {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 10px;
+}
+
+/* Loading skeleton */
+.ai-skeleton-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ai-skeleton-line {
+  height: 12px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--bg-subtle) 25%, var(--bg-hover) 37%, var(--bg-subtle) 63%);
+  background-size: 400% 100%;
+  animation: aiSkeletonShimmer 1.4s ease infinite;
+}
+
+.ai-skeleton-line.is-title {
+  height: 18px;
+  width: 45%;
+}
+
+.ai-skeleton-line.is-value {
+  height: 26px;
+  width: 60%;
+}
+
+.ai-skeleton-line.is-short {
+  width: 70%;
+}
+
+@keyframes aiSkeletonShimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
 /* Mobile Utilities */
 .mobile-only {
   display: none;
@@ -1229,7 +1681,8 @@ button {
   }
 
   .grid-2,
-  .grid-analytics {
+  .grid-analytics,
+  .grid-ai {
     grid-template-columns: 1fr;
   }
 }
@@ -1268,6 +1721,16 @@ button {
 
   .form-grid-2 {
     grid-template-columns: 1fr;
+  }
+
+  .ai-ask-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ai-score {
+    width: 108px;
+    height: 108px;
   }
 
   .breadcrumb-root,
